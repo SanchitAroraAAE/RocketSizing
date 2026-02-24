@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 thrust = 1556.87757 #[N], 350lbf 
 Pc = 1723689.3233 #chamber pressure[Pa], 250 psia
 OF = 3 #oxidize-fuel ratio
-CR = 5 #contraction ratio Ac/At
-L_star = 0.381 #characteristic length [m], 20"
+d_c = 0.0762 #chamber dia. [m], 3"
+L_star = 0.762 #characteristic length [m], 30"
 percent_bell = 0.8 #percent rao nozzle
 
 #GENERAL CALCULATIONS
@@ -29,8 +29,8 @@ d_e = 2 * np.sqrt(A_e/np.pi) #throat diameter [m]
 L_n = percent_bell * (np.sqrt(ER)-1)*(d_t/2)/(np.tan(np.deg2rad(15)))
 
 #CHAMBER CALCULATIONS
-A_c = CR*A_t
-d_c = 2*np.sqrt(A_c/np.pi) #chamber diameter [m]
+A_c = np.pi * (d_c/2)**2
+CR = A_c/A_t
 V_c = L_star * A_t #chamber colume [m^3]
 L_c = V_c/A_c #chamber length (from injector face to throat) [m]
 
@@ -67,6 +67,7 @@ print(f"Exit diameter: {d_e: .6f} m")
 print(f"Chamber length: {L_c: .6f} m")
 print(f"Nozzle length; {L_n: .6f} m\n")
 
+print(f"Contraction Ratio: {CR: .3f}")
 print(f"Theta N : {theta_n: .6f} deg")
 print(f"Theta E: {theta_e: .6f} deg\n")
 

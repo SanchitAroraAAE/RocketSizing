@@ -7,11 +7,11 @@ import matplotlib.pyplot as plt
 
 #INPUT PARAMETERS
 ER = 3.4826 #expansion ratio
-CR = 5 #contraction ratio
-r_c = 0.057456/2 #chamber rad.
+CR = 7.036 #contraction ratio
+r_c = 0.0762/2 #chamber rad.
 r_t = 0.028728/2 #throat rad.
 r_e = np.sqrt(ER)*r_t #exit rad.
-L_c = 0.0762 #chamber length [m]
+L_c = 0.108305 #chamber length [m]
 
 percent_bell = 0.8 #Percent Rao nozzle. 80% standard
 theta_n = np.deg2rad(20.7239)
