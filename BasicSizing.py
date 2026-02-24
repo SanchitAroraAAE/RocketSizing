@@ -2,13 +2,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # https://cearun.grc.nasa.gov/cgi-bin/CEARUN/donecea3.cgi
+# https://www.eucass.eu/doi/EUCASS2017-474.pdf Source used for L* and Pc value
 
 #INPUTS
 thrust = 1556.87757 #[N], 350lbf 
-Pc = 1723689.3233 #chamber pressure[Pa], 250 psia
+Pc = 2068427.184 #chamber pressure[Pa], 300 psia
 OF = 3 #oxidize-fuel ratio
-d_c = 0.0762 #chamber dia. [m], 3"
-L_star = 0.762 #characteristic length [m], 30"
+d_c = 0.08255 #chamber dia. [m] 3.25"
+L_star = 1.397 #characteristic length [m], 55"
 percent_bell = 0.8 #percent rao nozzle
 
 #GENERAL CALCULATIONS
@@ -29,8 +30,8 @@ d_e = 2 * np.sqrt(A_e/np.pi) #throat diameter [m]
 L_n = percent_bell * (np.sqrt(ER)-1)*(d_t/2)/(np.tan(np.deg2rad(15)))
 
 #CHAMBER CALCULATIONS
-A_c = np.pi * (d_c/2)**2
-CR = A_c/A_t
+A_c = np.pi * (d_c/2)**2 #chamber area [m^2]
+CR = A_c/A_t #contraction ratio Ac/At
 V_c = L_star * A_t #chamber colume [m^3]
 L_c = V_c/A_c #chamber length (from injector face to throat) [m]
 
@@ -53,8 +54,8 @@ else:
     theta_n_deg = np.interp(ER, eratio, theta_n_80)
     theta_e_deg = np.interp(ER, eratio, theta_e_80)
 
-theta_n = (theta_n_deg)
-theta_e = (theta_e_deg)
+theta_n = (theta_n_deg) #theta N value [deg]
+theta_e = (theta_e_deg) #theta E value [deg]
 
 #PRINT OUTPUTS
 print(f"Total mass flow: {m_dot_total: .3f} kg/s")
