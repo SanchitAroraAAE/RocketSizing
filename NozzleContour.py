@@ -6,29 +6,30 @@ import matplotlib.pyplot as plt
 # https://wikis.mit.edu/confluence/pages/viewpage.action?pageId=153816550
 
 #INPUT PARAMETERS
-ER = 3.4826 #expansion ratio
-r_c = 0.08255/2 #chamber rad. [m]
-r_t = 0.026225/2 #throat rad. [m]
-r_e = 0.048940/2 #exit rad. [m]
-L_c = 0.140989 #chamber length [m]
+ER = 3.9821          # Expansion ratio
+r_c = 0.08255/2      # Chamber rad. [m]
+r_t = 0.025891/2     # Throat rad. [m]
+r_e = 0.051667/2     # Exit rad. [m]
+L_c = 0.149920       # Chamber length [m]
+#L_n = 0.038478 #nozzle length [m]
 
-percent_bell = 0.8 #percent Rao nozzle. 80% standard
-theta_n = np.deg2rad(20.7239) #theta N [rad]
-theta_e = np.deg2rad(14.5174) #theta N [rad]
-convergence_angle = 37.5 #convergence angle [deg]
+percent_bell = 0.8                  # Percent Rao nozzle. 80% standard
+theta_n = np.deg2rad(21.473150)     # Theta N [rad]
+theta_e = np.deg2rad(14.017900)     # Theta N [rad]
+convergence_angle = 37.5            # Convergence angle [deg]
 
 beta = np.deg2rad(convergence_angle)
 
 
 #CALCULATIONS
 #Area calcs
-A_c = np.pi * (r_c**2) #chamber area [m^2]
-A_t = np.pi * (r_t**2) #throat area [m^2]
-A_e = np.pi * (r_e**2) #exit area [m^2]
+A_c = np.pi * (r_c**2)     # Chamber area [m^2]
+A_t = np.pi * (r_t**2)     # Throat area [m^2]
+A_e = np.pi * (r_e**2)     # Exit area [m^2]
 
 #Length calcs
 #eqts. 3
-L_n = percent_bell * (np.sqrt(ER)-1)*r_t/(np.tan(np.deg2rad(15))) #nozzle length [m]
+L_n = percent_bell * (np.sqrt(ER)-1)*r_t/(np.tan(np.deg2rad(15)))     # Nozzle length [m]
 
 #THROAT AND BELL GEOMETRY
 #Rao converging section
@@ -50,8 +51,8 @@ x_N = x_divergence[-1]
 y_N = y_divergence[-1]
 
 #Finding E
-x_E = L_n #derived from eqt. 3
-y_E = r_e #derived from eqt. 2 or just BasicSizing results
+x_E = L_n     # Derived from eqt. 3
+y_E = r_e     # Derived from eqt. 2 or just BasicSizing results
 
 #Finding Q
 #eqts. 8

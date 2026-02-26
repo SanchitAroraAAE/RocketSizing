@@ -6,16 +6,16 @@ import matplotlib.pyplot as plt
 
 #INPUTS
 thrust = 1556.87757     # [N], 350lbf 
-Pc = 2068427.184        # Chamber pressure[Pa], 300 psia
-OF = 3                  # Oxidize-fuel ratio
+Pc = 101352.932016      # Chamber pressure[Pa], 14.7 psia
+OF = 1                  # Oxidize-fuel ratio
 d_c = 0.08255           # Chamber dia. [m] 3.25"
 L_star = 1.524          # Characteristic length [m], 60"
 percent_bell = 0.8      # Percent rao nozzle
 
 #GENERAL CALCULATIONS
-c = 1649.9          # Effective exhaust velocity [m/s]
-c_star = 1154.1     # Characteristic exhaust velocity [m/s]
-ER = 3.9821         # Expansion ratio Ae/At
+c = 1344.6          # Effective exhaust velocity [m/s]
+c_star = 2081.0     # Characteristic exhaust velocity [m/s]
+ER = 1              # Expansion ratio Ae/At
 isp = c/9.81        # Specific impulse [1/s]
 
 m_dot_total = thrust/c              # Total mass flow [kg/s]

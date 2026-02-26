@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from rocketcea.cea_obj import CEA_Obj, add_new_fuel
 
 #USER SETTINGS
-Pc = 250.0        # chamber pressure [psia]
+Pc = 250.0 # chamber pressure [psia]
 OF_range = np.linspace(1.0, 10, 60)
 
 #CREATE E98 FUEL
