@@ -142,7 +142,7 @@ else:
     print("No valid configurations found. Try relaxing constraints.")
 
 # Plot Relationship between Number of Holes and LMR
-plot = 0 # Set to 1 to enable plotting
+plot = 1 # Set to 1 to enable plotting
 if results and len(results) > 1 and plot:
     # Create figure with two subplots
     plt.figure(figsize=(12, 5))
