@@ -13,20 +13,20 @@ import matplotlib.pyplot as plt
 mode = "Hotfire"
 
 if mode == "Hotfire": # Hotfire Input Values
-    mass_flow_total = 3.1437919  # lbm/s
-    OF_ratio = 1.58
-    chamber_pressure = 200       # psi
-    ox_temp = 90                 # K (LOX)
+    mass_flow_total = 1.078  # kg/s
+    OF_ratio = 3
+    chamber_pressure = 300       # psi
+    ox_temp = 298               # K (LOX)
     fuel_temp = 298
 if mode == "Water":  # Water Input values
-    mass_flow_total = 1.06       # lbm/s
+    mass_flow_total = 1.158       # lbm/s
     OF_ratio = 1
-    chamber_pressure = 14.7      # psi
+    chamber_pressure = 101352.93201599999      # psi
     ox_temp = 293                # K (water proxy for LOX)
     fuel_temp = 293              # K (water proxy for ethanol)
     
 # User Inputs
-chamber_diameter = 3.975     # in
+chamber_diameter = 3.25     # in
 discharge_coef = 0.65
 skip_distance = 1     # ratio of skip length(distance from annular to radial flow) to pintle diameter.
 shaft_ratio = 1/5     # ratio used with BZ1 and BZB
@@ -42,11 +42,11 @@ lbm_to_kg = 0.453592
 psi_to_pa = 6894.76
 in_to_m = 0.0254
 
-ox_temp = 90 #293          # Liquid Oxygen Temp K
+ox_temp = 283 #293          # Liquid Oxygen Temp K
 fuel_temp = 298 #293       # Ethanol Temp K
 
 # Unit Conversions
-mass_flow_total *= lbm_to_kg
+mass_flow_total = 1.078
 chamber_pressure *= psi_to_pa
 chamber_diameter *= in_to_m
 
@@ -63,7 +63,7 @@ ox_inlet_pressure = chamber_pressure + ox_pressure_drop
 fuel_inlet_pressure = chamber_pressure + fuel_pressure_drop
 
 # Fluid Properties
-ox_density = CP.PropsSI('D', 'T', ox_temp, 'P', ox_inlet_pressure, 'Oxygen')               #[kg/m^3] density of LOX
+ox_density = CP.PropsSI('D', 'T', ox_temp, 'P', ox_inlet_pressure, 'NitrousOxide')               #[kg/m^3] density of LOX
 fuel_density = CP.PropsSI('D', 'T', fuel_temp, 'P', fuel_inlet_pressure, 'Ethanol')          #[kg/m^3] density of FUEL
 
 # Pintle Geometry
@@ -78,8 +78,8 @@ ox_flow_rate = fuel_flow_total * OF_ratio
 fuel_flow_rate = fuel_flow_total * (1 - fc_fuel_ratio)
 
 # Load Drill Bit Sizes
-drill_bits_df = pd.read_csv(r"Injectors\Heatsink_Injector\bidc_bit_sizes.csv")
-drill_bits = np.sort(pd.to_numeric(drill_bits_df["Bits in millimeters"], errors='coerce').dropna() * 0.001) # Convert mm to m
+drill_bits_df = pd.read_csv(r"Drill_Bits.csv")
+drill_bits = np.sort(pd.to_numeric(drill_bits_df["Decimal Value (mm)"], errors='coerce').dropna() * 0.001) # Convert mm to m
 
 results = []
 
@@ -133,9 +133,9 @@ if results:
     
     # Create DataFrame and save to Excel
     results_df = pd.DataFrame(results)
-    results_df.to_excel('optimized_injector_configs.xlsx', index=False)
+    #results_df.to_excel('optimized_injector_configs.xlsx', index=False)
     print(f"Found {len(results)} valid configurations. Top 3:")
-    top3 = results_df.head(3).round(3).reset_index(drop=True)
+    top3 = results_df.head(3).round(6).reset_index(drop=True)
     top3.index += 1
     print(top3)
 else:

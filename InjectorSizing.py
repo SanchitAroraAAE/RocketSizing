@@ -12,11 +12,11 @@ import matplotlib.pyplot as plt
 mode = "Hotfire"
 
 if mode == "Hotfire": # Hotfire Input Values
-    m_dot_total = 0.944   # kg/s
+    m_dot_total = 1.078   # kg/s
     OF = 3
     Pc = 2068427.184          # Chamber pressure [Pa], 300 psia
-    ox_temp = 305.37          # NOs temp [K]
-    fuel_temp = 3298          # E98 temp [k]
+    ox_temp = 293          # NOs temp [K]
+    fuel_temp = 293          # E98 temp [k]
 if mode == "Water": # Water Input values
     m_dot_total = 1.158       # kg/s
     OF = 1
@@ -49,6 +49,7 @@ m_dot_fuel_pint = m_dot_fuel * (1-film_percent)
 
 # Pintle Geo. Calcs
 shaft_dia = d_c * shaft_ratio
+print(shaft_dia)
 shaft_rad = shaft_dia /2
 skip_len = skip_distance * shaft_dia
 print(f"Skip length: {skip_len}m")
@@ -63,7 +64,7 @@ elif mode == "Water":
 inlet_P = Pc + delta_P    # Required injector inlet pressure [Pa]
 
 # Fluid Properties
-ox_rho = CP.PropsSI ("D", "T", ox_temp, "P", inlet_P, "oxygen")
+ox_rho = CP.PropsSI ("D", "T", ox_temp, "P", inlet_P, "NitrousOxide")
 fuel_rho = CP.PropsSI("D", "T", fuel_temp, "P", inlet_P, "Ethanol")
 
 # Available Drill Bit Sizes
@@ -110,7 +111,7 @@ for num_holes in range(10, 120, 2): # Needs to have atleast 10 holes. Increment 
             "num_rows": num_rows,
             "hole_diam_in": act_dia_ox / in_to_m,    # Convert back to inches
             "hole_dia_mm": act_dia_ox * 1000,        # Diameter in mm (convert m to mm)
-            "annular_thk": annular_thk / in_to_m,
+            "annular_thk": annular_thk/in_to_m,
             "LMR": LMR,
             "TMR": TMR,
             "blockage_factor": BF,
@@ -130,7 +131,7 @@ if results:
     results_df = pd.DataFrame(results)
     #results_df.to_excel("optimized_injector_configs.xlsx", index=False)
     print(f"Found {len(results)} valid configurations. Top 3:")
-    top3 = results_df.head(4).round(3).reset_index(drop=True)
+    top3 = results_df.head(4).round(6).reset_index(drop=True)
     top3.index += 1
     print(top3)
 else:
