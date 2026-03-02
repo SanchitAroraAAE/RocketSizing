@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 # https://www.eucass.eu/doi/EUCASS2017-474.pdf Source used for L* and Pc value
 
 #INPUTS
-thrust = 1556.87757     # [N], 350lbf 
+thrust = 1779.28865     # [N], 400lbf 
 Pc = 101352.932016      # Chamber pressure[Pa], 14.7 psia
 OF = 1                  # Oxidize-fuel ratio
 d_c = 0.08255           # Chamber dia. [m] 3.25"

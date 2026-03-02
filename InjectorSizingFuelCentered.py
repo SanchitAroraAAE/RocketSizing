@@ -65,69 +65,65 @@ inlet_P = Pc + delta_P    # Required injector inlet pressure [Pa]
 # Fluid Properties
 ox_rho = CP.PropsSI ("D", "T", ox_temp, "P", inlet_P, "NitrousOxide")
 fuel_rho = CP.PropsSI("D", "T", fuel_temp, "P", inlet_P, "Ethanol")
+print(ox_rho)
+print(fuel_rho)
 
 # Available Drill Bit Sizes
-drills_list = pd.read_excel(r"Drill_Bits.xlsx")
+drills_list = pd.read_csv(r"Drill_Bits.csv")
 drills = np.sort(pd.to_numeric(drills_list["Decimal Value (mm)"], errors="coerce").dropna() * 0.001) # Convert mm to m
 results = []
 
 #Optimization Loop (from flowchart on PSP confluence)
-for num_holes in range(10, 120, 2): # Needs to have atleast 10 holes. Increment by 2 for efficiency
+# --- MODIFIED OPTIMIZATION LOOP (FUEL CENTERED) ---
+for num_holes in range(10, 120, 2): 
 
-    # Calculate theoretical hole diameter
-    area_ox = m_dot_ox / (discharge_coef * np.sqrt(2 * ox_rho * delta_P))     # Standard Orifice Equation
-    hole_diameter = 2 * np.sqrt(area_ox / (np.pi * num_holes))                # Area of a circle times the number of holes needs to be total ox area
+    # 1. Calculate theoretical FUEL hole diameter (Holes are now FUEL)
+    area_fuel_holes = m_dot_fuel_pint / (discharge_coef * np.sqrt(2 * fuel_rho * delta_P))
+    hole_diameter = 2 * np.sqrt(area_fuel_holes / (np.pi * num_holes))
 
     # Find nearest drill size
     idx = np.argmin(np.abs(hole_diameter - drills))
-    act_dia_ox = drills[idx]
-    act_A_ox = num_holes * np.pi * (act_dia_ox / 2)**2
+    act_dia_fuel = drills[idx]
+    act_A_fuel = num_holes * np.pi * (act_dia_fuel / 2)**2
     
+    # Calc Velocity (Fuel)
+    vel_fuel = m_dot_fuel_pint / (act_A_fuel * fuel_rho)
     
-    # Calc velocities
-    vel_ox = m_dot_ox / (act_A_ox*ox_rho)                                    # Find exit velocity of oxdizer
+    # 2. Calc Annulus (Annulus is now OXIDIZER)
+    # Using the same ratio logic: (Area_ox / Area_fuel) ~ (rho_fuel / rho_ox) * (1/OF)
+    # Re-deriving annular thickness for OX in the annulus:
+    annular_thk = (np.pi * fuel_rho * act_dia_fuel * OF**2) / (4 * ox_rho) # Flipped OF and rho
+    A_ox = np.pi * ((shaft_rad + annular_thk)**2 - shaft_rad**2)
     
-    # Calc Annulus
-    #A_fuel = m_dot_fuel_pint / (discharge_coef * np.sqrt(2*fuel_rho*delta_P))
-    #annular_thk = np.sqrt(shaft_rad**2 + A_fuel / np.pi) - shaft_rad
+    vel_ox = m_dot_ox / (A_ox * ox_rho)
+    
+    # 3. Momentum Ratios (TMR = Radial Momentum / Axial Momentum)
+    # In Fuel-Centered: Radial = Fuel, Axial = Ox
+    TMR = (m_dot_fuel_pint * vel_fuel) / (m_dot_ox * vel_ox) 
+    
+    # Blockage Factor (BF) remains based on holes vs circumference
+    BF = (num_holes * act_dia_fuel) / (np.pi * shaft_dia)
+    LMR = TMR / BF 
+    
+    num_rows = 1 if BF <= 1 else 2
 
-    annular_thk = (np.pi*ox_rho*act_dia_ox) / (4*fuel_rho*(OF**2))           # Eqt 1.9 from PSP Injector Design and Analysis page (which I think got it from NASA SP-8089)
-    A_fuel = np.pi * ((shaft_rad + annular_thk)**2 - shaft_rad**2)       
-    vel_fuel = m_dot_fuel_pint / (A_fuel * fuel_rho)                         
-    
-    # Momentum Ratios
-    TMR = (m_dot_ox * vel_ox) / (m_dot_fuel_pint * vel_fuel)                 # Eqt. 1.7 from PSP page
-    BF = (num_holes * act_dia_ox) / (np.pi * shaft_dia)         # Eqt. 1.11 from PSP page
-    LMR = TMR / BF                                            # Eqt. 1.13 from PSP page
-    
-    # Check how many rows are needed
-    num_rows = 1
-    if (BF>1):
-        num_rows = 2
-
-    act_delta_P = (m_dot_ox / (discharge_coef * act_A_ox))**2 / (2 * ox_rho)
-    act_delta_P_psi = act_delta_P / psi_to_pa
-
-    # Only store configurations within target LMR range
+    # Check against targets
     if (target_TMR_min <= TMR <= target_TMR_max) and (target_LMR_min <= LMR <= target_LMR_max):
-        spray_angle = np.degrees(2 * 0.7 * np.arctan(2 * LMR))               # Eqt. 1.14 from PSP page (from Flow characteristics of a pintle injector element Eq(3))
+        spray_angle = np.degrees(2 * 0.7 * np.arctan(2 * LMR))
         
         results.append({
             "num_holes": num_holes,
             "num_rows": num_rows,
-            "hole_diam_in": act_dia_ox / in_to_m,    # Convert back to inches
-            "hole_dia_mm": act_dia_ox * 1000,        # Diameter in mm (convert m to mm)
-            "annular_thk": annular_thk / in_to_m,
+            "hole_dia_mm": act_dia_fuel * 1000,
+            "annular_thk_in": annular_thk / in_to_m,
             "LMR": LMR,
             "TMR": TMR,
             "blockage_factor": BF,
             "spray_angle_deg": spray_angle,
             "vel_ox": vel_ox,
             "vel_fuel": vel_fuel,
-            "area_ox_in": act_A_ox/ in_to_m**2,      # Convert area to inches^2
-            "area_fuel_in": A_fuel/ in_to_m**2,      # Convert area to inches^2
-            "actual_delta_P_psi": act_delta_P_psi,
-            "delta_P_error_percent": ((act_delta_P / delta_P) - 1) * 100,  #Will show if you're limited by drill bit size
+            "area_ox_in": A_ox / in_to_m**2,
+            "area_fuel_in": act_A_fuel / in_to_m**2,
         })
 
 # Output Results
@@ -139,7 +135,7 @@ if results:
     results_df = pd.DataFrame(results)
     #results_df.to_excel("optimized_injector_configs.xlsx", index=False)
     print(f"Found {len(results)} valid configurations. Top 3:")
-    top3 = results_df.head(7).round(5).reset_index(drop=True)
+    top3 = results_df.head(4).round(3).reset_index(drop=True)
     top3.index += 1
     print(top3)
 else:

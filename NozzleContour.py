@@ -8,10 +8,10 @@ import matplotlib.pyplot as plt
 #INPUT PARAMETERS
 ER = 3.9821          # Expansion ratio
 r_c = 0.08255/2      # Chamber rad. [m]
-r_t = 0.027697/2     # Throat rad. [m]
-r_e = 0.055234/2     # Exit rad. [m]
-L_c = 0.171338       # Chamber length [m]
-#L_n = 0.041135      #nozzle length [m]
+r_t = 0.028398/2     # Throat rad. [m]
+r_e = 0.056669/2     # Exit rad. [m]
+L_c = 0.180355       # Chamber length [m]
+#L_n = 0.042203      #nozzle length [m]
 
 percent_bell = 0.8                  # Percent Rao nozzle. 80% standard
 theta_n = np.deg2rad(21.473150)     # Theta N [rad]

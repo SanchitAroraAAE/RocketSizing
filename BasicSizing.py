@@ -5,25 +5,30 @@ import matplotlib.pyplot as plt
 # https://www.eucass.eu/doi/EUCASS2017-474.pdf Source used for L* and Pc value
 
 #INPUTS
-thrust = 1779.28865     # [N], 350lbf 
+thrust = 1779.28865     # [N], 400lbf 
 Pc = 2068427.184        # Chamber pressure[Pa], 300 psia
 OF = 3                  # Oxidize-fuel ratio
 d_c = 0.08255           # Chamber dia. [m] 3.25"
 L_star = 1.524          # Characteristic length [m], 60"
 percent_bell = 0.8      # Percent rao nozzle
+eta_cstar = 0.8         # 80% combustion efficiency
+eta_cf = 0.95            # 90% nozzle efficiency
 
 #GENERAL CALCULATIONS
 c = 1649.9          # Effective exhaust velocity [m/s]
 c_star = 1154.1     # Characteristic exhaust velocity [m/s]
 ER = 3.9821         # Expansion ratio Ae/At
-isp = c/9.81        # Specific impulse [1/s]
 
-m_dot_total = thrust/c              # Total mass flow [kg/s]
+c_actual = c * eta_cstar * eta_cf   # Total efficiency
+c_star_actual = c_star * eta_cstar
+isp = c_actual / 9.81        # Specific impulse [1/s]
+
+m_dot_total = thrust/c_actual              # Total mass flow [kg/s]
 m_dot_fuel = m_dot_total/(1+OF)     # Fuel mass flow [kg/s]
 m_dot_ox = m_dot_fuel*OF            # Oxidizer mass flow [kg/s]
 
 #NOZZLE CALCULATIONS
-A_t = c_star*m_dot_total/Pc      # Throat area [m^2]
+A_t = c_star_actual*m_dot_total/Pc      # Throat area [m^2]
 d_t = 2 * np.sqrt(A_t/np.pi)     # Throat diameter [m]
 A_e = A_t * ER                   # Exit area [m^2]
 d_e = 2 * np.sqrt(A_e/np.pi)     # Throat diameter [m]
