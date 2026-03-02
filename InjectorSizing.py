@@ -15,9 +15,9 @@ if mode == "Hotfire": # Hotfire Input Values
     m_dot_total = 1.419   # kg/s
     OF = 3
     Pc = 2068427.184         # Chamber pressure [Pa], 300 psia
-    ox_temp = 308            # NOs temp [K], 0deg C
+    ox_temp = 253            # NOs temp [K], 0deg C
     fuel_temp = 293          # E98 temp [k], 20deg C
-if mode == "Water": # Water Input values
+if mode == "Waterflow": # Water Input values
     m_dot_total = 1.158       # kg/s
     OF = 1
     Pc = 101352.93201599999   # Chamber pressre [Pa], 14.7psia
@@ -56,15 +56,21 @@ print(f"Skip length: {skip_len}m")
 # Stiffness/Pressure Drops
 if mode =="Hotfire":
     delta_P= Pc * 0.2         # 20% Is standard value in industry
-elif mode == "Water":
+elif mode == "Waterflow":
     min_drop = 40 * psi_to_pa # 40psi min
     delta_P = max(Pc * 0.8, min_drop)
 
 inlet_P = Pc + delta_P    # Required injector inlet pressure [Pa]
 
 # Fluid Properties
-ox_rho = CP.PropsSI ("D", "T", ox_temp, "P", inlet_P, "NitrousOxide")
-fuel_rho = CP.PropsSI("D", "T", fuel_temp, "P", inlet_P, "Ethanol")
+if mode == "Hotfire":
+    ox_rho = CP.PropsSI ("D", "T", ox_temp, "P", inlet_P, "NitrousOxide")
+    fuel_rho = CP.PropsSI("D", "T", fuel_temp, "P", inlet_P, "Ethanol")
+elif mode == "Waterflow":
+    ox_rho = CP.PropsSI ("D", "T", ox_temp, "P", inlet_P, "Water")
+    fuel_rho = CP.PropsSI("D", "T", fuel_temp, "P", inlet_P, "Water")
+print(ox_rho)
+print(fuel_rho)
 
 # Available Drill Bit Sizes
 drills_list = pd.read_excel(r"Drill_Bits.xlsx")
@@ -98,7 +104,7 @@ for num_holes in range(10, 120, 2): # Needs to have atleast 10 holes. Increment 
     # Momentum Ratios
     TMR = (m_dot_ox * vel_ox) / (m_dot_fuel_pint * vel_fuel)                 # Eqt. 1.7 from PSP page
     BF = (num_holes * act_dia_ox) / (np.pi * shaft_dia)         # Eqt. 1.11 from PSP page
-    LMR = TMR / BF                                            # Eqt. 1.13 from PSP page
+    LMR = TMR / BF                                              # Eqt. 1.13 from PSP page
     
     # Check how many rows are needed
     num_rows = 1
