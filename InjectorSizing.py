@@ -2,30 +2,34 @@ import numpy as np
 import pandas as pd
 import CoolProp.CoolProp as CP
 import matplotlib.pyplot as plt
+from BasicSizing import BasicSizing
 
 #https://purdue-space-program.atlassian.net/wiki/spaces/PL/pages/180486437/Injector+Design+and+Analysis
 #https://purdue-space-program.atlassian.net/wiki/spaces/PL/pages/1248264194/Phoenix+Injector
 #https://events.iist.ac.in/phd/thesis/SC09D002%20FT.pdf Film cooling study (in addition to basics from NASA SP-125)
 
-# INPUTS
-# Mode selection
+# RUN BASIC SIZING
 mode = "Hotfire"
+sizing = BasicSizing(mode)
 
+# INPUTS
+
+# Sizing call inputs
+m_dot_total = sizing.m_dot_total  # Total mass flow [kg/s]
+m_dot_fuel = sizing.m_dot_fuel    # Fuel mass flow [kg/s]
+m_dot_ox = sizing.m_dot_ox        # oxidizer mass flow [kg/s]
+OF = sizing.OF
+Pc = sizing.Pc
+d_c = sizing.d_c                  # Chamber diameter [m], 3.25"
+
+# Mode selection
 if mode == "Hotfire": # Hotfire Input Values
-    m_dot_total = 1.419   # kg/s
-    OF = 3
-    Pc = 2068427.184         # Chamber pressure [Pa], 300 psia
     ox_temp = 253            # NOs temp [K], 0deg C
-    fuel_temp = 293          # E98 temp [k], 20deg C
 if mode == "Waterflow": # Water Input values
-    m_dot_total = 1.158       # kg/s
-    OF = 1
-    Pc = 101352.93201599999   # Chamber pressre [Pa], 14.7psia
     ox_temp = 293             # Water temp [K] (water replacement for NOs)
     fuel_temp = 293           # Water temp [K] (water replacement for E98)
 
 # User Inputs
-d_c = 0.08255            # Chamber diameter [m], 3.25"
 discharge_coef = 0.65
 skip_distance = 1        # Ratio of skip length (distance from annular to radial flow) to pintle diameter.
 shaft_ratio = 1/5        # Ratio used with BZ1 and BZB
@@ -43,8 +47,6 @@ in_to_m = 0.0254
 
 # Mass Flow Calcs
 film_percent = 0.05                   # 5% film cooling (from phoenix)
-m_dot_fuel = m_dot_total / (1+OF)     # Fuel mass flow [kg/s]
-m_dot_ox = m_dot_fuel * OF            # oxidizer mass flow [kg/s]
 m_dot_fuel_pint = m_dot_fuel * (1-film_percent)
 
 # Pintle Geo. Calcs
@@ -55,20 +57,20 @@ print(f"Skip length: {skip_len}m")
 
 # Stiffness/Pressure Drops
 if mode =="Hotfire":
-    delta_P= Pc * 0.2         # 20% Is standard value in industry
+    delta_P_ox = Pc * 0.2         # 20% Is standard value in industry
 elif mode == "Waterflow":
     min_drop = 40 * psi_to_pa # 40psi min
-    delta_P = max(Pc * 0.8, min_drop)
+    delta_P_ox = max(Pc * 0.8, min_drop)
 
-inlet_P = Pc + delta_P    # Required injector inlet pressure [Pa]
+inlet_P_ox = Pc + delta_P_ox    # Required injector inlet pressure [Pa]
 
 # Fluid Properties
 if mode == "Hotfire":
-    ox_rho = CP.PropsSI ("D", "T", ox_temp, "P", inlet_P, "NitrousOxide")
-    fuel_rho = CP.PropsSI("D", "T", fuel_temp, "P", inlet_P, "Ethanol")
+    ox_rho = CP.PropsSI ("D", "T", ox_temp, "P", inlet_P_ox, "NitrousOxide")    # N2O density [kg/m^3]
+    fuel_rho = 789    # E98 density [kg/m^3]
 elif mode == "Waterflow":
-    ox_rho = CP.PropsSI ("D", "T", ox_temp, "P", inlet_P, "Water")
-    fuel_rho = CP.PropsSI("D", "T", fuel_temp, "P", inlet_P, "Water")
+    ox_rho = 1000     # Water density [kg/m^3]
+    fuel_rho = 1000   # Water density [kg/m^3]
 print(ox_rho)
 print(fuel_rho)
 
@@ -81,7 +83,7 @@ results = []
 for num_holes in range(10, 120, 2): # Needs to have atleast 10 holes. Increment by 2 for efficiency
 
     # Calculate theoretical hole diameter
-    area_ox = m_dot_ox / (discharge_coef * np.sqrt(2 * ox_rho * delta_P))     # Standard Orifice Equation
+    area_ox = m_dot_ox / (discharge_coef * np.sqrt(2 * ox_rho * delta_P_ox))     # Standard Orifice Equation
     hole_diameter = 2 * np.sqrt(area_ox / (np.pi * num_holes))                # Area of a circle times the number of holes needs to be total ox area
 
     # Find nearest drill size
@@ -133,7 +135,7 @@ for num_holes in range(10, 120, 2): # Needs to have atleast 10 holes. Increment 
             "area_ox_in": act_A_ox/ in_to_m**2,      # Convert area to inches^2
             "area_fuel_in": A_fuel/ in_to_m**2,      # Convert area to inches^2
             "actual_delta_P_psi": act_delta_P_psi,
-            "delta_P_error_percent": ((act_delta_P / delta_P) - 1) * 100,  #Will show if you're limited by drill bit size
+            "delta_P_error_percent": ((act_delta_P / delta_P_ox) - 1) * 100,  #Will show if you're limited by drill bit size
         })
 
 # Output Results

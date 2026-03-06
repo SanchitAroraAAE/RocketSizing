@@ -7,7 +7,7 @@ Pc = 250.0 # chamber pressure [psia]
 OF_range = np.linspace(1.0, 10, 60)
 
 #CREATE E98 FUEL
-e98_card = """fuel C2H6 wt=0.98 fuel H2O  wt=0.02"""
+e98_card = """fuel C2H5OH wt=0.98 fuel H2O  wt=0.02"""
 add_new_fuel("E98", e98_card)
 
 #CREATE CEA OBJECT
