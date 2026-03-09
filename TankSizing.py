@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import CoolProp.CoolProp as CP
 from BasicSizing import BasicSizing
 
@@ -19,7 +20,7 @@ OF = sizing.OF                      # O/F Ratio
 thrust = sizing.thrust   # Thrust values [N], 400 lbf
 m_dot_total = sizing.m_dot_total
 
-# General Cals
+# General Vals
 # Tank vals
 id_tank = 3.75 * in_to_m          # Tank Inner diameter
 od_tank = 4 * in_to_m             # Tank Outer diameter
@@ -50,13 +51,23 @@ shear_steel = yield_tensile_steel * 0.6        # Shear Strength ~72ksi (from Hal
 # Prop Temps
 # Mode selection
 if mode == "Hotfire": # Hotfire Input Values
-    ox_temp = 295            # NOs temp [K], 0deg C
+    ox_temp = 70              # NOs temp [F], 26.6 deg C
 if mode == "Waterflow": # Water Input values
     water_rho = 1000         # Water density
 
+
+# Finding N2O density
+# Finding N2O Pressure and Density
+n2o = pd.read_excel(r"N20 Densities.xlsx")
+ox_temps = pd.to_numeric(n2o.iloc[:,0], errors="coerce").to_numpy()       # T [°F]
+ox_pressures = pd.to_numeric(n2o.iloc[:,1], errors="coerce").to_numpy()   # P [kPa]
+ox_rhos = pd.to_numeric(n2o.iloc[:,2], errors="coerce").to_numpy()        # rho [kg/m^3]
+ox_pressure = np.interp(ox_temp, ox_temps, ox_pressures) * 1000           # Convert to Pa
+ox_rho = np.interp(ox_temp, ox_temps, ox_rhos)
+
 # Densities (kg/m^3)
 if mode == "Hotfire":
-    ox_rho = CP.PropsSI ("D", "T", ox_temp, "P", p_tank, "NitrousOxide")    # N2O density [kg/m^3]
+    ox_rho = ox_rho   # N2O density [kg/m^3]
     fuel_rho = 789    # E98 density [kg/m^3]
 elif mode == "Waterflow":
     ox_rho = 1000     # Water density [kg/m^3]

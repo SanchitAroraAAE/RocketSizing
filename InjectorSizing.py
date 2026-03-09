@@ -24,7 +24,8 @@ d_c = sizing.d_c                  # Chamber diameter [m], 3.25"
 
 # Mode selection
 if mode == "Hotfire": # Hotfire Input Values
-    ox_temp = 253            # NOs temp [K], 0deg C
+    ox_temp = 70              # NOs temp [F], 26.6 deg C
+    fuel_temp = 298           # E98 temp [k]
 if mode == "Waterflow": # Water Input values
     ox_temp = 293             # Water temp [K] (water replacement for NOs)
     fuel_temp = 293           # Water temp [K] (water replacement for E98)
@@ -55,24 +56,33 @@ shaft_rad = shaft_dia /2
 skip_len = skip_distance * shaft_dia
 print(f"Skip length: {skip_len}m")
 
+# Finding N2O Pressure and Density
+n2o = pd.read_excel(r"N20 Densities.xlsx")
+ox_temps = pd.to_numeric(n2o.iloc[:,0], errors="coerce").to_numpy()       # T [°F]
+ox_pressures = pd.to_numeric(n2o.iloc[:,1], errors="coerce").to_numpy()   # P [kPa]
+ox_rhos = pd.to_numeric(n2o.iloc[:,2], errors="coerce").to_numpy()        # rho [kg/m^3]
+ox_pressure = np.interp(ox_temp, ox_temps, ox_pressures) * 1000           # Convert to Pa
+ox_rho = np.interp(ox_temp, ox_temps, ox_rhos)
+
+print(ox_pressure, ox_rho)
+
 # Stiffness/Pressure Drops
 if mode =="Hotfire":
-    delta_P_ox = Pc * 0.2         # 20% Is standard value in industry
+    delta_P_ox = ox_pressure-Pc         # Based on pressure in tank needed to keep N2O liquid
 elif mode == "Waterflow":
     min_drop = 40 * psi_to_pa # 40psi min
     delta_P_ox = max(Pc * 0.8, min_drop)
 
-inlet_P_ox = Pc + delta_P_ox    # Required injector inlet pressure [Pa]
+inlet_P_ox = Pc + delta_P_ox    # Required injector inlet pressure [Pa]. Same as tnak pressure
+print(delta_P_ox)
 
 # Fluid Properties
 if mode == "Hotfire":
-    ox_rho = CP.PropsSI ("D", "T", ox_temp, "P", inlet_P_ox, "NitrousOxide")    # N2O density [kg/m^3]
+    ox_rho = ox_rho   # N2O density [kg/m^3]
     fuel_rho = 789    # E98 density [kg/m^3]
 elif mode == "Waterflow":
     ox_rho = 1000     # Water density [kg/m^3]
     fuel_rho = 1000   # Water density [kg/m^3]
-print(ox_rho)
-print(fuel_rho)
 
 # Available Drill Bit Sizes
 drills_list = pd.read_excel(r"Drill_Bits.xlsx")
@@ -84,7 +94,7 @@ for num_holes in range(10, 120, 2): # Needs to have atleast 10 holes. Increment 
 
     # Calculate theoretical hole diameter
     area_ox = m_dot_ox / (discharge_coef * np.sqrt(2 * ox_rho * delta_P_ox))     # Standard Orifice Equation
-    hole_diameter = 2 * np.sqrt(area_ox / (np.pi * num_holes))                # Area of a circle times the number of holes needs to be total ox area
+    hole_diameter = 2 * np.sqrt(area_ox / (np.pi * num_holes))                   # Area of a circle times the number of holes needs to be total ox area
 
     # Find nearest drill size
     idx = np.argmin(np.abs(hole_diameter - drills))
@@ -93,7 +103,7 @@ for num_holes in range(10, 120, 2): # Needs to have atleast 10 holes. Increment 
     
     
     # Calc velocities
-    vel_ox = m_dot_ox / (act_A_ox*ox_rho)                                    # Find exit velocity of oxdizer
+    vel_ox = m_dot_ox / (act_A_ox*ox_rho)    # Find exit velocity of oxdizer
     
     # Calc Annulus
     #A_fuel = m_dot_fuel_pint / (discharge_coef * np.sqrt(2*fuel_rho*delta_P))
@@ -104,7 +114,7 @@ for num_holes in range(10, 120, 2): # Needs to have atleast 10 holes. Increment 
     vel_fuel = m_dot_fuel_pint / (A_fuel * fuel_rho)                         
     
     # Momentum Ratios
-    TMR = (m_dot_ox * vel_ox) / (m_dot_fuel_pint * vel_fuel)                 # Eqt. 1.7 from PSP page
+    TMR = (m_dot_ox * vel_ox) / (m_dot_fuel_pint * vel_fuel)    # Eqt. 1.7 from PSP page
     BF = (num_holes * act_dia_ox) / (np.pi * shaft_dia)         # Eqt. 1.11 from PSP page
     LMR = TMR / BF                                              # Eqt. 1.13 from PSP page
     
@@ -147,7 +157,7 @@ if results:
     results_df = pd.DataFrame(results)
     #results_df.to_excel("optimized_injector_configs.xlsx", index=False)
     print(f"Found {len(results)} valid configurations. Top 3:")
-    top3 = results_df.head(7).round(5).reset_index(drop=True)
+    top3 = results_df.head(23).round(5).reset_index(drop=True)
     top3.index += 1
     print(top3)
 else:
