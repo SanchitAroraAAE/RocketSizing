@@ -24,7 +24,7 @@ skip_distance = 1
 shaft_ratio = 1/8         # Reduced from 1/5 to help thicken the gap
 
 # TARGET ANNULAR THICKNESS (Back-solving for pressure from here)
-target_annular_in = 0.015 
+target_annular_in = 0.006 
 annular_thk_phys = target_annular_in * in_to_m
 
 target_LMR_min, target_LMR_max = 1.0, 5.0

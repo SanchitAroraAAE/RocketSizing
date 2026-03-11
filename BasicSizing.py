@@ -57,6 +57,7 @@ def BasicSizing(mode):
     c_actual = c * eta_cstar * eta_cf   # Total efficiency
     c_star_actual = c_star * eta_cstar
     isp = c_actual / 9.81        # Specific impulse [1/s]
+    print(isp)
 
     m_dot_total = thrust/c_actual       # Total mass flow [kg/s]
     m_dot_fuel = m_dot_total/(1+OF)     # Fuel mass flow [kg/s]

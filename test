@@ -1,0 +1,66 @@
+import numpy as np
+
+def calculate_injection_system(m_dot, rho, p_tank, prev_dp_total, params):
+    """
+    m_dot: mass flow rate (kg/s)
+    rho: density (kg/m^3)
+    p_tank: Tank pressure (Pa)
+    prev_dp_total: Total pressure drop from previous step (Pa)
+    params: dictionary of constants (Cv, L, D, etc.)
+    """
+    
+    # 1. Volumetric Flow
+    q_m3s = m_dot / rho
+    q_gpm = q_m3s * 15850.3
+    
+    # 2. Velocity in line
+    area_line = np.pi * (params['diameter_m'] / 2)**2
+    velocity = q_m3s / area_line
+    
+    # 3. Cv Loss (Calculation!AH)
+    # Note: rho/1000 is the Specific Gravity approx.
+    dp_cv_psi = (q_gpm / params['cv'])**2 * (rho / 1000)
+    dp_cv_pa = dp_cv_psi * 6894.76
+    
+    # 4. Line Loss (Calculation!AI)
+    # f = Friction factor (e.g., 0.01 or calculated from Reynolds)
+    f = params['friction_factor']
+    l_d_ratio = params['length_m'] / params['diameter_m']
+    dp_line_pa = f * l_d_ratio * (rho * velocity**2 / 2)
+    
+    # 5. Total Delta P with Damping (Calculation!AJ)
+    # G23 is Additional Loss in psi
+    p_offset_pa = params['additional_loss_psi'] * 6894.76
+    current_total_losses = dp_cv_pa + dp_line_pa + p_offset_pa
+    
+    # Apply the 0.5 damping factor seen in the Excel formula
+    dp_total = 0.5 * current_total_losses + 0.5 * prev_dp_total
+    
+    # 6. Injection Pressure for next step (Calculation!E)
+    p_inj = p_tank - dp_total
+    
+    return p_inj, dp_total
+
+# --- Example usage with values from your file ---
+config = {
+    'cv': 1.6,                   # G22
+    'diameter_m': 0.3125 * 0.0254, # G18 (inches to meters)
+    'length_m': 12 * 0.0254,      # G21 (inches to meters)
+    'additional_loss_psi': 0,     # G23
+    'friction_factor': 0.01       # Approximation of column AF (dwc_o)
+}
+
+# Example state
+lbm_to_kg = 0.453592
+psi_to_pa = 6894.76
+in_to_m = 0.0254
+
+p_tank_pa = 850 * psi_to_pa  # 5863.7 kPa to Pa
+m_dot = 1               # kg/s
+rho = 776               # kg/m^3
+prev_dp = 0
+
+p_injection, next_dp = calculate_injection_system(m_dot, rho, p_tank_pa, prev_dp, config)
+
+print(f"Injection Pressure: {p_injection / psi_to_pa:.2f} psi")
+print(f"Total Line Loss: {next_dp / psi_to_pa:.2f} psi")
