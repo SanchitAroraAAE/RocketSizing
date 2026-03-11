@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import CoolProp.CoolProp as CP
 import matplotlib.pyplot as plt
+import FeedPressureDrop
 from BasicSizing import BasicSizing
 
 #https://purdue-space-program.atlassian.net/wiki/spaces/PL/pages/180486437/Injector+Design+and+Analysis
@@ -13,6 +14,11 @@ mode = "Hotfire"
 sizing = BasicSizing(mode)
 
 # INPUTS
+
+# Conversion Factors
+lbm_to_kg = 0.453592
+psi_to_pa = 6894.76
+in_to_m = 0.0254
 
 # Sizing call inputs
 m_dot_total = sizing.m_dot_total  # Total mass flow [kg/s]
@@ -39,13 +45,15 @@ target_LMR_min = 1.0     # Minimum LMR (Flow characteristics of a pintle injecto
 target_LMR_max = 3.0     # Maximum LMR (Range between 1.5 and 3.0 recommended for best atomization and Wide, uniform spray pattern)
 
 target_TMR_min = 0.9     # keep around this range to have efficient shear mixing and optimize C*
-target_TMR_max = 1.5
+target_TMR_max = 2
 
-# Conversion Factors and Constants
-lbm_to_kg = 0.453592
-psi_to_pa = 6894.76
-in_to_m = 0.0254
+Cd_annulus = 0.6
 
+# Fuel Pressure Losses
+piston_loss = 15 * psi_to_pa
+
+
+# CALCULATIONS
 # Mass Flow Calcs
 film_percent = 0.05                   # 5% film cooling (from phoenix)
 m_dot_fuel_pint = m_dot_fuel * (1-film_percent)
@@ -54,7 +62,6 @@ m_dot_fuel_pint = m_dot_fuel * (1-film_percent)
 shaft_dia = d_c * shaft_ratio
 shaft_rad = shaft_dia /2
 skip_len = skip_distance * shaft_dia
-print(f"Skip length: {skip_len}m")
 
 # Finding N2O Pressure and Density
 n2o = pd.read_excel(r"N20 Densities.xlsx")
@@ -63,18 +70,6 @@ ox_pressures = pd.to_numeric(n2o.iloc[:,1], errors="coerce").to_numpy()   # P [k
 ox_rhos = pd.to_numeric(n2o.iloc[:,2], errors="coerce").to_numpy()        # rho [kg/m^3]
 ox_pressure = np.interp(ox_temp, ox_temps, ox_pressures) * 1000           # Convert to Pa
 ox_rho = np.interp(ox_temp, ox_temps, ox_rhos)
-
-print(ox_pressure, ox_rho)
-
-# Stiffness/Pressure Drops
-if mode =="Hotfire":
-    delta_P_ox = ox_pressure-Pc         # Based on pressure in tank needed to keep N2O liquid
-elif mode == "Waterflow":
-    min_drop = 40 * psi_to_pa # 40psi min
-    delta_P_ox = max(Pc * 0.8, min_drop)
-
-inlet_P_ox = Pc + delta_P_ox    # Required injector inlet pressure [Pa]. Same as tnak pressure
-print(delta_P_ox)
 
 # Fluid Properties
 if mode == "Hotfire":
@@ -88,6 +83,25 @@ elif mode == "Waterflow":
 drills_list = pd.read_excel(r"Drill_Bits.xlsx")
 drills = np.sort(pd.to_numeric(drills_list["Decimal Value (mm)"], errors="coerce").dropna() * 0.001) # Convert mm to m
 results = []
+
+# Feed line pressure drop calcs
+# HalfCat uses more P loss factors but keepiing it simple for now as values are close
+ox_feed_loss = 135.7 * psi_to_pa   # From HalfCatSim
+fuel_feed_loss = 65.6 *psi_to_pa   # From HalfCatSim
+#ox_line_loss = FeedPressureDrop.calculate_pressure_drop(m_dot_ox, ox_rho, 12, 0.3125, 0.00000394, 1.6) # Values pulled from HalfCat for the moment
+#fuel_line_loss = FeedPressureDrop.calculate_pressure_drop(m_dot_fuel, fuel_rho, 48, 0.225, 0.00000394, 1.6) # Values pulled from HalfCat for the moment
+
+# Stiffness/Pressure Drops
+if mode =="Hotfire":
+    # Accounts for losses from feed lines, valves, etc.
+    inlet_P_ox = ox_pressure - ox_feed_loss       
+    inlet_P_fuel = ox_pressure - fuel_feed_loss
+elif mode == "Waterflow":
+    min_drop = 40 * psi_to_pa # 40psi min
+    delta_P_ox = max(Pc * 0.8, min_drop)
+
+delta_P_ox = inlet_P_ox - Pc  
+delta_P_fuel = inlet_P_fuel - Pc   
 
 #Optimization Loop (from flowchart on PSP confluence)
 for num_holes in range(10, 120, 2): # Needs to have atleast 10 holes. Increment by 2 for efficiency
@@ -106,12 +120,13 @@ for num_holes in range(10, 120, 2): # Needs to have atleast 10 holes. Increment 
     vel_ox = m_dot_ox / (act_A_ox*ox_rho)    # Find exit velocity of oxdizer
     
     # Calc Annulus
-    #A_fuel = m_dot_fuel_pint / (discharge_coef * np.sqrt(2*fuel_rho*delta_P))
-    #annular_thk = np.sqrt(shaft_rad**2 + A_fuel / np.pi) - shaft_rad
+    #A_fuel_eff = m_dot_fuel_pint / (discharge_coef * np.sqrt(2*fuel_rho*delta_P_fuel))
+    #A_fuel_phys = A_fuel_eff/Cd_annulus
+    #annular_thk = np.sqrt(shaft_rad**2 + A_fuel_phys / np.pi) - shaft_rad
 
     annular_thk = (np.pi*ox_rho*act_dia_ox) / (4*fuel_rho*(OF**2))           # Eqt 1.9 from PSP Injector Design and Analysis page (which I think got it from NASA SP-8089)
-    A_fuel = np.pi * ((shaft_rad + annular_thk)**2 - shaft_rad**2)       
-    vel_fuel = m_dot_fuel_pint / (A_fuel * fuel_rho)                         
+    A_fuel_eff = np.pi * ((shaft_rad + annular_thk)**2 - shaft_rad**2)   
+    vel_fuel = m_dot_fuel_pint / (A_fuel_eff * fuel_rho)                      
     
     # Momentum Ratios
     TMR = (m_dot_ox * vel_ox) / (m_dot_fuel_pint * vel_fuel)    # Eqt. 1.7 from PSP page
@@ -143,7 +158,7 @@ for num_holes in range(10, 120, 2): # Needs to have atleast 10 holes. Increment 
             "vel_ox": vel_ox,
             "vel_fuel": vel_fuel,
             "area_ox_in": act_A_ox/ in_to_m**2,      # Convert area to inches^2
-            "area_fuel_in": A_fuel/ in_to_m**2,      # Convert area to inches^2
+            "area_fuel_in": A_fuel_eff/ in_to_m**2,      # Convert area to inches^2
             "actual_delta_P_psi": act_delta_P_psi,
             "delta_P_error_percent": ((act_delta_P / delta_P_ox) - 1) * 100,  #Will show if you're limited by drill bit size
         })
@@ -157,7 +172,7 @@ if results:
     results_df = pd.DataFrame(results)
     #results_df.to_excel("optimized_injector_configs.xlsx", index=False)
     print(f"Found {len(results)} valid configurations. Top 3:")
-    top3 = results_df.head(23).round(5).reset_index(drop=True)
+    top3 = results_df.head(10).round(5).reset_index(drop=True)
     top3.index += 1
     print(top3)
 else:

@@ -39,6 +39,10 @@ import numpy as np
 # Cv_total = flow coefficient
 
 def calculate_pressure_drop(m_dot, rho, mu, L, D, epsilon, Cv_total):
+    in_to_m = 0.0254
+    L *= in_to_m
+    D *= in_to_m
+    epsilon *= in_to_m
     # Calculate Flow Geometry
     area = np.pi * (D / 2)**2
     vel = m_dot / (rho * area)

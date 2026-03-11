@@ -9,10 +9,10 @@ sizing = BasicSizing(mode)
 
 # INPUT PARAMETERS
 # Conversion Factors
+in_to_m = 0.0254
 lbf_to_N = 4.44822162
 lbm_to_kg = 0.453592
 psi_to_pa = 6894.76
-in_to_m = 0.0254
 
 # From BasicSizing
 isp_expected = sizing.isp           # Predicted Isp in seconds
