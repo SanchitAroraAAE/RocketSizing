@@ -1,170 +1,156 @@
 import numpy as np
 import pandas as pd
-import CoolProp.CoolProp as CP
 import matplotlib.pyplot as plt
+import CoolProp.CoolProp as CP
 import FeedPressureDrop
 from BasicSizing import BasicSizing
 
-#https://purdue-space-program.atlassian.net/wiki/spaces/PL/pages/180486437/Injector+Design+and+Analysis
-#https://purdue-space-program.atlassian.net/wiki/spaces/PL/pages/1248264194/Phoenix+Injector
-#https://events.iist.ac.in/phd/thesis/SC09D002%20FT.pdf Film cooling study (in addition to basics from NASA SP-125)
 
-# RUN BASIC SIZING
+# REFERENCES
+# Injector Design: https://purdue-space-program.atlassian.net/wiki/spaces/PL/pages/180486437/Injector+Design+and+Analysis
+# Phoenix Injector: https://purdue-space-program.atlassian.net/wiki/spaces/PL/pages/1248264194/Phoenix+Injector
+# Film Cooling: https://events.iist.ac.in/phd/thesis/SC09D002%20FT.pdf
+
+
+# NITIALIZATION & INPUTS
 mode = "Hotfire"
 sizing = BasicSizing(mode)
 
-# INPUTS
-
 # Conversion Factors
-lbm_to_kg = 0.453592
-psi_to_pa = 6894.76
-in_to_m = 0.0254
+LBM_TO_KG = 0.453592
+PSI_TO_PA = 6894.76
+IN_TO_M = 0.0254
 
-# Sizing call inputs
-m_dot_total = sizing.m_dot_total  # Total mass flow [kg/s]
-m_dot_fuel = sizing.m_dot_fuel    # Fuel mass flow [kg/s]
-m_dot_ox = sizing.m_dot_ox        # oxidizer mass flow [kg/s]
+# Sizing Parameters
+m_dot_total = sizing.m_dot_total  # [kg/s]
+m_dot_fuel = sizing.m_dot_fuel    # [kg/s]
+m_dot_ox = sizing.m_dot_ox        # [kg/s]
 OF = sizing.OF
 Pc = sizing.Pc
-d_c = sizing.d_c                  # Chamber diameter [m], 3.25"
+d_c = sizing.d_c                  # Chamber diameter [m]
 
-# Mode selection
-if mode == "Hotfire": # Hotfire Input Values
-    ox_temp = 70              # NOs temp [F], 26.6 deg C
-    fuel_temp = 298           # E98 temp [k]
-if mode == "Waterflow": # Water Input values
-    ox_temp = 293             # Water temp [K] (water replacement for NOs)
-    fuel_temp = 293           # Water temp [K] (water replacement for E98)
+# Thermodynamic Conditions
+if mode == "Hotfire":
+    ox_temp = 70                  # [F] (26.6 C)
+    fuel_temp = 298               # [K]
+else: # Waterflow
+    ox_temp = 293                 # [K]
+    fuel_temp = 293               # [K]
 
-# User Inputs
+# Design Constraints & Targets
 discharge_coef = 0.65
-skip_distance = 1        # Ratio of skip length (distance from annular to radial flow) to pintle diameter.
-shaft_ratio = 1/5        # Ratio used with BZ1 and BZB
-
-target_LMR_min = 1.0     # Minimum LMR (Flow characteristics of a pintle injector element https://www.sciencedirect.com/science/article/pii/S0094576518309883#fd2)
-target_LMR_max = 3.0     # Maximum LMR (Range between 1.5 and 3.0 recommended for best atomization and Wide, uniform spray pattern)
-
-target_TMR_min = 0.9     # keep around this range to have efficient shear mixing and optimize C*
-target_TMR_max = 2
-
 Cd_annulus = 0.6
+skip_distance = 1                 # Ratio of skip length to pintle diameter
+shaft_ratio = 1/5                 # Ratio for shaft diameter calculation
+film_percent = 0.05               # 5% film cooling fraction
 
-# Fuel Pressure Losses
-piston_loss = 15 * psi_to_pa
+target_LMR_min, target_LMR_max = 1.0, 3.0
+target_TMR_min, target_TMR_max = 0.9, 2.0
+
+# Pressure Loss Constants
+piston_loss = 15 * PSI_TO_PA
+ox_feed_loss = 135.7 * PSI_TO_PA
+fuel_feed_loss = 65.6 * PSI_TO_PA
 
 
-# CALCULATIONS
-# Mass Flow Calcs
-film_percent = 0.05                   # 5% film cooling (from phoenix)
-m_dot_fuel_pint = m_dot_fuel * (1-film_percent)
+# PRE-LOOP CALCULATIONS
 
-# Pintle Geo. Calcs
+# Mass Flow & Geometry
+m_dot_fuel_pint = m_dot_fuel * (1 - film_percent)
 shaft_dia = d_c * shaft_ratio
-shaft_rad = shaft_dia /2
+shaft_rad = shaft_dia / 2
 skip_len = skip_distance * shaft_dia
 
-# Finding N2O Pressure and Density
+# Oxidizer Properties (Interpolation)
 n2o = pd.read_excel(r"N20 Densities.xlsx")
-ox_temps = pd.to_numeric(n2o.iloc[:,0], errors="coerce").to_numpy()       # T [°F]
-ox_pressures = pd.to_numeric(n2o.iloc[:,1], errors="coerce").to_numpy()   # P [kPa]
-ox_rhos = pd.to_numeric(n2o.iloc[:,2], errors="coerce").to_numpy()        # rho [kg/m^3]
-ox_pressure = np.interp(ox_temp, ox_temps, ox_pressures) * 1000           # Convert to Pa
-ox_rho = np.interp(ox_temp, ox_temps, ox_rhos)
+ox_temps = pd.to_numeric(n2o.iloc[:, 0], errors="coerce").to_numpy()
+ox_pressures = pd.to_numeric(n2o.iloc[:, 1], errors="coerce").to_numpy()
+ox_rhos = pd.to_numeric(n2o.iloc[:, 2], errors="coerce").to_numpy()
 
-# Fluid Properties
+ox_pressure = np.interp(ox_temp, ox_temps, ox_pressures) * 1000 # [Pa]
+ox_rho_interp = np.interp(ox_temp, ox_temps, ox_rhos)
+
 if mode == "Hotfire":
-    ox_rho = ox_rho   # N2O density [kg/m^3]
-    fuel_rho = 789    # E98 density [kg/m^3]
-elif mode == "Waterflow":
-    ox_rho = 1000     # Water density [kg/m^3]
-    fuel_rho = 1000   # Water density [kg/m^3]
+    ox_rho = ox_rho_interp
+    fuel_rho = 789
+else: # Waterflow
+    ox_rho = 1000
+    fuel_rho = 1000
 
-# Available Drill Bit Sizes
+# Available Drills
 drills_list = pd.read_excel(r"Drill_Bits.xlsx")
-drills = np.sort(pd.to_numeric(drills_list["Decimal Value (mm)"], errors="coerce").dropna() * 0.001) # Convert mm to m
+drills = np.sort(pd.to_numeric(drills_list["Decimal Value (mm)"], errors="coerce").dropna() * 0.001)
+
+# System Pressure Drops
+if mode == "Hotfire":
+    inlet_P_ox = ox_pressure - ox_feed_loss
+    inlet_P_fuel = ox_pressure - fuel_feed_loss
+    delta_P_ox = inlet_P_ox - Pc
+    delta_P_fuel = inlet_P_fuel - Pc
+else:
+    min_drop = 40 * PSI_TO_PA
+    delta_P_ox = max(Pc * 0.8, min_drop)
+    delta_P_fuel = delta_P_ox # Assuming similar for waterflow
+
+
+# PTIMIZATION LOOP
 results = []
 
-# Feed line pressure drop calcs
-# HalfCat uses more P loss factors but keepiing it simple for now as values are close
-ox_feed_loss = 135.7 * psi_to_pa   # From HalfCatSim
-fuel_feed_loss = 65.6 *psi_to_pa   # From HalfCatSim
-#ox_line_loss = FeedPressureDrop.calculate_pressure_drop(m_dot_ox, ox_rho, 12, 0.3125, 0.00000394, 1.6) # Values pulled from HalfCat for the moment
-#fuel_line_loss = FeedPressureDrop.calculate_pressure_drop(m_dot_fuel, fuel_rho, 48, 0.225, 0.00000394, 1.6) # Values pulled from HalfCat for the moment
+for num_holes in range(10, 120, 2):
+    # Determine Hole Size based on pressure drop
+    area_ox_req = m_dot_ox / (discharge_coef * np.sqrt(2 * ox_rho * delta_P_ox))
+    ideal_hole_dia = 2 * np.sqrt(area_ox_req / (np.pi * num_holes))
 
-# Stiffness/Pressure Drops
-if mode =="Hotfire":
-    # Accounts for losses from feed lines, valves, etc.
-    inlet_P_ox = ox_pressure - ox_feed_loss       
-    inlet_P_fuel = ox_pressure - fuel_feed_loss
-elif mode == "Waterflow":
-    min_drop = 40 * psi_to_pa # 40psi min
-    delta_P_ox = max(Pc * 0.8, min_drop)
-
-delta_P_ox = inlet_P_ox - Pc  
-delta_P_fuel = inlet_P_fuel - Pc   
-
-#Optimization Loop (from flowchart on PSP confluence)
-for num_holes in range(10, 120, 2): # Needs to have atleast 10 holes. Increment by 2 for efficiency
-
-    # Calculate theoretical hole diameter
-    area_ox = m_dot_ox / (discharge_coef * np.sqrt(2 * ox_rho * delta_P_ox))     # Standard Orifice Equation
-    hole_diameter = 2 * np.sqrt(area_ox / (np.pi * num_holes))                   # Area of a circle times the number of holes needs to be total ox area
-
-    # Find nearest drill size
-    idx = np.argmin(np.abs(hole_diameter - drills))
+    # Match to real drill bit
+    idx = np.argmin(np.abs(ideal_hole_dia - drills))
     act_dia_ox = drills[idx]
     act_A_ox = num_holes * np.pi * (act_dia_ox / 2)**2
     
-    
-    # Calc velocities
-    vel_ox = m_dot_ox / (act_A_ox*ox_rho)    # Find exit velocity of oxdizer
-    
-    # Calc Annulus
-    #A_fuel_eff = m_dot_fuel_pint / (discharge_coef * np.sqrt(2*fuel_rho*delta_P_fuel))
-    #A_fuel_phys = A_fuel_eff/Cd_annulus
-    #annular_thk = np.sqrt(shaft_rad**2 + A_fuel_phys / np.pi) - shaft_rad
+    # Kinematics
+    vel_ox = m_dot_ox / (act_A_ox * ox_rho)
 
-    annular_thk = (np.pi*ox_rho*act_dia_ox) / (4*fuel_rho*(OF**2))           # Eqt 1.9 from PSP Injector Design and Analysis page (which I think got it from NASA SP-8089)
-    A_fuel_eff = np.pi * ((shaft_rad + annular_thk)**2 - shaft_rad**2)   
-    vel_fuel = m_dot_fuel_pint / (A_fuel_eff * fuel_rho)                      
+    # Annulus Geometry (Eq 1.9 from PSP / NASA SP-8089)
+    annular_thk = (np.pi * ox_rho * act_dia_ox) / (4 * fuel_rho * (OF**2))
+    A_fuel_eff = np.pi * ((shaft_rad + annular_thk)**2 - shaft_rad**2)
+    vel_fuel = m_dot_fuel_pint / (A_fuel_eff * fuel_rho)
     
-    # Momentum Ratios
-    TMR = (m_dot_ox * vel_ox) / (m_dot_fuel_pint * vel_fuel)    # Eqt. 1.7 from PSP page
-    BF = (num_holes * act_dia_ox) / (np.pi * shaft_dia)         # Eqt. 1.11 from PSP page
-    LMR = TMR / BF                                              # Eqt. 1.13 from PSP page
+    # Momentum Ratios & Mixing
+    TMR = (m_dot_ox * vel_ox) / (m_dot_fuel_pint * vel_fuel)
+    BF = (num_holes * act_dia_ox) / (np.pi * shaft_dia) # Blockage Factor
+    LMR = TMR / BF
     
-    # Check how many rows are needed
-    num_rows = 1
-    if (BF>1):
-        num_rows = 2
+    num_rows = 2 if BF > 1 else 1
 
+    # Final Verification
     act_delta_P = (m_dot_ox / (discharge_coef * act_A_ox))**2 / (2 * ox_rho)
-    act_delta_P_psi = act_delta_P / psi_to_pa
-
-    # Only store configurations within target LMR range
+    
+    # Filtering and Result Collection
     if (target_TMR_min <= TMR <= target_TMR_max) and (target_LMR_min <= LMR <= target_LMR_max):
-        spray_angle = np.degrees(2 * 0.7 * np.arctan(2 * LMR))               # Eqt. 1.14 from PSP page (from Flow characteristics of a pintle injector element Eq(3))
+        spray_angle = np.degrees(2 * 0.7 * np.arctan(2 * LMR))
         
         results.append({
             "num_holes": num_holes,
             "num_rows": num_rows,
-            "hole_diam_in": act_dia_ox / in_to_m,    # Convert back to inches
-            "hole_dia_mm": act_dia_ox * 1000,        # Diameter in mm (convert m to mm)
-            "annular_thk": annular_thk / in_to_m,
+            "hole_diam_in": act_dia_ox / IN_TO_M,
+            "hole_dia_mm": act_dia_ox * 1000,
+            "annular_thk": annular_thk / IN_TO_M,
             "LMR": LMR,
             "TMR": TMR,
             "blockage_factor": BF,
             "spray_angle_deg": spray_angle,
             "vel_ox": vel_ox,
             "vel_fuel": vel_fuel,
-            "area_ox_in": act_A_ox/ in_to_m**2,      # Convert area to inches^2
-            "area_fuel_in": A_fuel_eff/ in_to_m**2,      # Convert area to inches^2
-            "actual_delta_P_psi": act_delta_P_psi,
-            "delta_P_error_percent": ((act_delta_P / delta_P_ox) - 1) * 100,  #Will show if you're limited by drill bit size
+            "area_ox_in": act_A_ox / IN_TO_M**2,
+            "area_fuel_in": A_fuel_eff / IN_TO_M**2,
+            "actual_delta_P_psi": act_delta_P / PSI_TO_PA,
+            "delta_P_error_percent": ((act_delta_P / delta_P_ox) - 1) * 100,
         })
 
+
+# OTPUTS & PLOTTING
 # Output Results
 if results:
+    # Sort by proximity to center of TMR target range
     target_TMR_mid = (target_TMR_min + target_TMR_max) / 2
     results.sort(key=lambda x: abs(x["LMR"] - target_TMR_mid))
     
@@ -179,12 +165,12 @@ else:
     print("No valid configurations found. Try relaxing constraints.")
 
 # Plot Relationship between Number of Holes and LMR
-plot = 1 # Set to 1 to enable plotting
-if results and len(results) > 1 and plot:
+plot_enabled = True # Set to 1 to enable plotting
+if len(results) > 1 and plot_enabled:
     # Create figure with two subplots
     plt.figure(figsize=(12, 5))
-    
-    # TMR vs Hole Count
+
+    # Plot TMR vs Hole Count
     plt.subplot(1, 2, 1)
     plt.plot(results_df["num_holes"], results_df["TMR"], "bo-")
     plt.xlabel("Number of Holes")
@@ -192,7 +178,7 @@ if results and len(results) > 1 and plot:
     plt.title("TMR vs Hole Count")
     plt.grid(True)
     
-    # LMR vs Hole Count
+    # Plot LMR vs Hole Count
     plt.subplot(1, 2, 2)
     plt.plot(results_df["num_holes"], results_df["LMR"], "ro-")
     plt.xlabel("Number of Holes")
@@ -207,10 +193,10 @@ if results and len(results) > 1 and plot:
     plt.tight_layout()
     
     # Save and show plot
-    #plt.savefig("hole_count_vs_momentum_ratios.png", dpi=300)
+    # plt.savefig("hole_count_vs_momentum_ratios.png", dpi=300)
     plt.show()
 else:
-    if plot == 1:
+    if plot_enabled == 1:
         print("Not enough data points to generate meaningful plots")
 
 
