@@ -17,9 +17,9 @@ mode = "Hotfire"
 sizing = BasicSizing(mode)
 
 # Conversion Factors
-LBM_TO_KG = 0.453592
-PSI_TO_PA = 6894.76
-IN_TO_M = 0.0254
+lbm_to_kg = 0.453592
+psi_to_pa = 6894.76
+in_to_m = 0.0254
 
 # Sizing Parameters
 m_dot_total = sizing.m_dot_total  # [kg/s]
@@ -41,16 +41,16 @@ else: # Waterflow
 discharge_coef = 0.65
 Cd_annulus = 0.6
 skip_distance = 1                 # Ratio of skip length to pintle diameter
-shaft_ratio = 1/5                 # Ratio for shaft diameter calculation
-film_percent = 0.05               # 5% film cooling fraction
+shaft_ratio = 1/12                # Ratio for shaft diameter calculation
+film_percent = 0.4               # 5% film cooling fraction
 
-target_LMR_min, target_LMR_max = 1.0, 3.0
-target_TMR_min, target_TMR_max = 0.9, 2.0
+target_LMR_min, target_LMR_max = 1.0, 10.0
+target_TMR_min, target_TMR_max = 2.0, 5.0
 
 # Pressure Loss Constants
-piston_loss = 15 * PSI_TO_PA
-ox_feed_loss = 135.7 * PSI_TO_PA
-fuel_feed_loss = 65.6 * PSI_TO_PA
+piston_loss = 15 * psi_to_pa
+ox_feed_loss = 135.7 * psi_to_pa
+fuel_feed_loss = 65.6 * psi_to_pa
 
 
 # PRE-LOOP CALCULATIONS
@@ -88,7 +88,7 @@ if mode == "Hotfire":
     delta_P_ox = inlet_P_ox - Pc
     delta_P_fuel = inlet_P_fuel - Pc
 else:
-    min_drop = 40 * PSI_TO_PA
+    min_drop = 40 * psi_to_pa
     delta_P_ox = max(Pc * 0.8, min_drop)
     delta_P_fuel = delta_P_ox # Assuming similar for waterflow
 
@@ -131,18 +131,18 @@ for num_holes in range(10, 120, 2):
         results.append({
             "num_holes": num_holes,
             "num_rows": num_rows,
-            "hole_diam_in": act_dia_ox / IN_TO_M,
+            "hole_diam_in": act_dia_ox / in_to_m,
             "hole_dia_mm": act_dia_ox * 1000,
-            "annular_thk": annular_thk / IN_TO_M,
+            "annular_thk": annular_thk / in_to_m,
             "LMR": LMR,
             "TMR": TMR,
             "blockage_factor": BF,
             "spray_angle_deg": spray_angle,
             "vel_ox": vel_ox,
             "vel_fuel": vel_fuel,
-            "area_ox_in": act_A_ox / IN_TO_M**2,
-            "area_fuel_in": A_fuel_eff / IN_TO_M**2,
-            "actual_delta_P_psi": act_delta_P / PSI_TO_PA,
+            "area_ox_in": act_A_ox / in_to_m**2,
+            "area_fuel_in": A_fuel_eff / in_to_m**2,
+            "actual_delta_P_psi": act_delta_P / psi_to_pa,
             "delta_P_error_percent": ((act_delta_P / delta_P_ox) - 1) * 100,
         })
 
@@ -171,7 +171,7 @@ if len(results) > 1 and plot_enabled:
     plt.figure(figsize=(12, 5))
 
     # Plot TMR vs Hole Count
-    plt.subplot(1, 2, 1)
+    plt.subplot(2, 2, 1)
     plt.plot(results_df["num_holes"], results_df["TMR"], "bo-")
     plt.xlabel("Number of Holes")
     plt.ylabel("TMR")
@@ -179,13 +179,21 @@ if len(results) > 1 and plot_enabled:
     plt.grid(True)
     
     # Plot LMR vs Hole Count
-    plt.subplot(1, 2, 2)
+    plt.subplot(2, 2, 2)
     plt.plot(results_df["num_holes"], results_df["LMR"], "ro-")
     plt.xlabel("Number of Holes")
     plt.ylabel("LMR")
     plt.title("LMR vs Hole Count")
     plt.grid(True)
-    
+
+    # Plot Annulus Thck vs TMR
+    plt.subplot(2, 2, 3)
+    plt.plot(results_df["TMR"], results_df["annular_thk"])
+    plt.xlabel("TMR")
+    plt.ylabel("annular thickness")
+    plt.ylim(0, 0.01)
+    plt.grid(True)    
+
     # Add horizontal lines showing target LMR range
     plt.axhline(y=target_LMR_min, color="gray", linestyle="--")
     plt.axhline(y=target_LMR_max, color="gray", linestyle="--")
